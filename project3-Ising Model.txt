@@ -183,7 +183,7 @@ plt.plot(TAF, max_mms, "bo--")
 plt.xscale('log')
 plt.xlabel("Temperature")
 plt.ylabel("Magnetic Moment (maximum of five results)")
-plt.title("Final Magnetic Moment vs Temperature ")
+plt.title("Curie temperature Visualization")
 plt.show()
 
 # formatted like this to avoid a line that is too long
