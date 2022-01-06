@@ -1,0 +1,223 @@
+## CELL 1 ##
+
+
+from scipy import integrate
+import matplotlib.pyplot as plt
+import numpy as np
+
+"""Definition of randomized inductor and capacitor values"""
+
+# random power(I_l) and value(F_l) for inductor
+I_l = np.random.randint(-8, -4)
+F_l = np.random.uniform(0, 1)
+
+L = F_l*10**I_l  # inductor value in Henries
+
+# random power(I_c) and value(F_c) for capacitor
+I_c = np.random.randint(-8, -4)
+F_c = np.random.uniform(0, 1)
+
+C = F_c*10**I_c  # capacitor value in Farads
+
+R = np.zeros(3)
+m = [0.1, 1, 5]
+for e in range(3):  # puts under, critically and over damped resitances in R
+    R[e] = 2*m[e]*np.sqrt(L/C)
+
+
+## CELL 2 ##
+
+
+"""
+PURPOSE
+Solve the Ordinary differential equations (ODE) for current and charge
+in an LRC circuit with randomly generated inductor and capacitor values,
+some given initial voltage (V_0) and some initial state of charge (q_0) and
+current (I_0) in the circuit. We define three resistances which cause the
+circuitto be underdamped, critically damped, and over damped respectively.
+This is done using integrate.solve_ivp() from Scipy. From solving the ODEs
+we plot the current vs time for each resistor at the resonant frequency.
+
+METHOD:
+Set constants for initial volatage, charge and current as well as the resonant
+frequency
+
+Define the function which computes the ODEs at each time step
+
+Intgrate.solve_ivp is called three times for each resistance. It provides the
+charge and current at each time step. The current values are then plotted
+against the time steps while current is positive.
+"""
+
+# CONSTANTS ==========
+
+V_0 = 1/2             # intial voltage amplitude in V
+omg = 1/np.sqrt(L*C)  # resonant frequency in Hz
+q_0 = 0               # initial charge in coulombs
+I_0 = 0               # initial current in amperes
+
+# FUNCTIONS ==========
+
+
+def dqdtAF(tAF, valAF, R, omega):
+    """
+    Returns the ODE for charge and current at a given time step tAf
+
+    Inputs:
+        tAF: the given time step for an iteration
+        valAF: a numpy array containing a charge and current value
+        R: the resistor value used in the computation
+        omega: the frequency used in the computation
+
+    Outputs:
+        numpy array containing:
+            I: the derivative of the charge value
+            I_t: the derivative of the current value based on the
+                 circuit and Voltage that varies with time.
+    """
+    q_i = valAF[0]  # charge for this iteration
+    I_i = valAF[1]  # current for this iteration
+    V_t = V_0*np.cos(omega*tAF)
+    I_t = 1/L*V_t - R/L*I_i - 1/(L*C)*q_i
+    return np.array([I_i, I_t])
+
+
+# PROBLEM SOLUTION ============
+
+# time values ------------
+t_0 = 0
+t_f = 15*2*np.pi*np.sqrt(L*C)  # final time - generates 15 oscillations
+steps = 1000
+tAF = np.linspace(t_0, t_f, steps)  # range of times
+
+# initial values ---------
+valAF_0 = np.array([q_0, I_0])
+
+
+# SOLVE DATA ------------
+
+# underdamped solution
+sol_u = integrate.solve_ivp(dqdtAF, (t_0, t_f), valAF_0, t_eval=tAF,
+                            method="LSODA", args=(R[0], omg))
+# critically damped solution
+sol_c = integrate.solve_ivp(dqdtAF, (t_0, t_f), valAF_0, t_eval=tAF,
+                            method="LSODA", args=(R[1], omg))
+# overdamped solution
+sol_o = integrate.solve_ivp(dqdtAF, (t_0, t_f), valAF_0, t_eval=tAF,
+                            method="LSODA", args=(R[2], omg))
+
+# time values
+tvals = sol_u['t']
+# Underdamped current values
+IAFu = sol_u['y'][1]
+# Critically damped current values
+IAFc = sol_c['y'][1]
+# OVerdamped current values
+IAFo = sol_o['y'][1]
+
+# PLOTTING GRAPHS ============
+
+# Underdamped plot
+plt.subplot(3, 1, 1)
+plt.plot(tvals, IAFu, "r-")
+plt.ylabel("current [A]")
+plt.xlabel("time [s]")
+plt.title("Current Oscillation - Underdamped (R = {:3.3f}Ohms)".format(R[0]))
+
+# Critically damped plot
+plt.subplot(3, 1, 2)
+plt.plot(tvals, IAFc, "b-")
+plt.ylabel("current [A]")
+plt.xlabel("time [s]")
+plt.title("Current Oscillation - Critically Damped(R = {:3.3f}Ohms)".format(R[1]))
+
+# Overdamped plot
+plt.subplot(3, 1, 3)
+plt.plot(tvals, IAFo, "g-")
+plt.ylabel("current [A]")
+plt.xlabel("time [s]")
+plt.title("Current Oscillation - Overdamped (R = {:3.3f}Ohms)".format(R[2]))
+
+plt.tight_layout()
+plt.show()
+
+
+## CELL 3 ##
+
+
+"""
+OBJECTIVE:
+Use ODEs for charge and current to generate three resonance plots over a
+range of frequencies for the three aforementioned resistors. Capacitance,
+inductance, initial voltage, intial charge, initial current and time are
+identical to part 2.
+
+METHOD:
+Use previously defined ODE function. For each resistance repeatedly call
+integrate.solve_ivp() over given range of frequencies. Find peak to peak
+current at each frequency once the signal has stabilized and store each
+amplitude in an array. Each array of amplitudes are stored seperately for
+each resistor.
+Plot the current amplitudes against the set of frequencies for each
+resistor.
+"""
+
+# CONSTANTS ===========
+# frequencies
+omg_0 = 0.1*omg  # initial
+omg_f = 2*omg    # final
+steps_f = 100    # steps (f distinguishes it from steps in previous cell)
+omgAF = np.linspace(omg_0, omg_f, steps_f)  # range
+
+# SOLUTION ============
+
+arr = np.empty(len(omgAF))
+# arrays to store amplitudes for each resistor
+amps = np.array([arr, arr, arr])
+
+# filling arrays with values
+for j in range(len(R)):  # iterates through resistors
+    for i in range(len(omgAF)):   # iterates through frequencies
+        # solution for jth resistor and ith frequency
+        sol = integrate.solve_ivp(dqdtAF, (t_0, t_f), valAF_0, t_eval=tAF,
+                                  method="LSODA", args=(R[j], omgAF[i]))
+        y = sol['y'][1]  # all current values
+
+        """this is to idex the second half of the current values when the
+        signal is stable. Needed if I_0 > stable signal's maximum
+        """
+        half = int(len(y)/2)
+        maxI = np.amax(y[half:])  # max in stabilized signal
+        minI = np.amin(y[half:])  # min in stabilized signal
+        amp = maxI - minI         # peak to peak amplitude
+        amps[j][i] = amp
+
+
+# PLOTTING ==============
+
+# Resonance plot for underdamped
+plt.subplot(311)
+plt.plot(omgAF/(2*np.pi), amps[0], 'r-')
+plt.xlabel("frequency [Hz]")
+plt.ylabel("Current amplitude [A]")
+plt.title(""""Resonance plot for LRC circuit with L = {0:3.3e}H,
+          R = {1:3.3f}Ohms and C = {2:3.3e}F""".format(L, R[0], C))
+
+# Resonance plot for critically damped
+plt.subplot(312)
+plt.plot(omgAF/(2*np.pi), amps[1], 'b-')
+plt.xlabel("frequency [Hz]")
+plt.ylabel("Current amplitude [A]")
+plt.title("""Resonance plot for LRC circuit with L = {0:3.3e}H,
+          R = {1:3.3f}Ohms and C = {2:3.3e}F""".format(L, R[1], C))
+
+# Resonance plot for underdamped
+plt.subplot(313)
+plt.plot(omgAF/(2*np.pi), amps[2], 'g-')
+plt.xlabel("frequency [Hz]")
+plt.ylabel("Current amplitude [A]")
+plt.title("""Resonance plot for LRC circuit with L = {0:3.3e}H,
+          R = {1:3.3f}Ohms and C = {2:3.3e}F""".format(L, R[2], C))
+
+plt.tight_layout()
+plt.show()
